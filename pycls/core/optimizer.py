@@ -68,12 +68,13 @@ def lr_fun_cos(cur_epoch):
     """Cosine schedule (cfg.OPTIM.LR_POLICY = 'cos')."""
     base_lr, max_epoch = cfg.OPTIM.BASE_LR, cfg.OPTIM.MAX_EPOCH
     return 0.5 * base_lr * (1.0 + np.cos(np.pi * cur_epoch / max_epoch))
+    # 当开始时cur_epoch=0，lr=baselr；当=max_epoch时，lr=0；这里没考虑warm_restart,即某一段学习率从高处重新开始降落（max_epoch换成restart的周期）
 
 
 def get_lr_fun():
     """Retrieves the specified lr policy function"""
-    lr_fun = "lr_fun_" + cfg.OPTIM.LR_POLICY
-    if lr_fun not in globals():
+    lr_fun = "lr_fun_" + cfg.OPTIM.LR_POLICY    # 以上3个lr_fun_{exp, cos, steps}
+    if lr_fun not in globals():                 # globals()以字典形式返回全局变量，包括所有导入的变量
         raise NotImplementedError("Unknown LR policy:" + cfg.OPTIM.LR_POLICY)
     return globals()[lr_fun]
 

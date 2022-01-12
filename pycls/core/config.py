@@ -19,7 +19,7 @@ from yacs.config import CfgNode as CfgNode
 _C = CfgNode()
 
 # Example usage:
-#   from core.config import cfg
+#   from core.config import cfg  使用这一句话之后， cfg.属性名称可以获得属性
 cfg = _C
 
 
@@ -192,7 +192,31 @@ _C.NAS = CfgNode()
 _C.NAS.GENOTYPE = 'nas'
 
 # Custom genotype
-_C.NAS.CUSTOM_GENOTYPE = []
+# 如果享用自己搜出来的结构，在这里填好
+_C.NAS.CUSTOM_GENOTYPE = [
+                            [
+                                ('sep_conv_3x3', 1), 
+                                ('dil_conv_3x3', 0), 
+                                ('dil_conv_5x5', 0), 
+                                ('sep_conv_5x5', 1), 
+                                ('dil_conv_3x3', 0), 
+                                ('sep_conv_3x3', 1), 
+                                ('sep_conv_3x3', 0), 
+                                ('sep_conv_3x3', 1)
+                            ], 
+                            [2,3,4,5], 
+                            [
+                                ('max_pool_3x3', 0), 
+                                ('max_pool_3x3', 1), 
+                                ('sep_conv_3x3', 2), 
+                                ('max_pool_3x3', 0), 
+                                ('max_pool_3x3', 0), 
+                                ('skip_connect', 2), 
+                                ('max_pool_3x3', 0), 
+                                ('dil_conv_3x3', 2)
+                            ], 
+                            [2,3,4,5]
+                        ]
 
 # Base NAS width
 _C.NAS.WIDTH = 16
@@ -491,8 +515,8 @@ def load_cfg_fom_args(description="Config file options."):
     help_s = "Config file location"
     parser.add_argument("--cfg", dest="cfg_file", help=help_s, required=True, type=str)
     help_s = "See pycls/core/config.py for all options"
-    parser.add_argument("opts", help=help_s, default=None, nargs=argparse.REMAINDER)
-    if len(sys.argv) == 1:
+    parser.add_argument("opts", help=help_s, default=None, nargs=argparse.REMAINDER)    # 所有剩余的参数，转化为一个列表赋值给此项
+    if len(sys.argv) == 1:      # 获取python后面的参数，例如 python a.py OUT_DIR, 则sys.argv输出是 ['a.py', 'OUT_DIR'] 若是只有
         parser.print_help()
         sys.exit(1)
     args = parser.parse_args()

@@ -32,7 +32,7 @@ def compute_time_eval(model):
     timer = Timer()
     total_iter = cfg.PREC_TIME.NUM_ITER + cfg.PREC_TIME.WARMUP_ITER
     for cur_iter in range(total_iter):
-        # Reset the timers after the warmup phase
+        # Reset the timers after the warmup phase   先跑warmup个iter，之后再计算平均时间
         if cur_iter == cfg.PREC_TIME.WARMUP_ITER:
             timer.reset()
         # Forward
@@ -47,6 +47,7 @@ def compute_time_train(model, loss_fun):
     """Computes precise model forward + backward time using dummy data."""
     # Use train mode
     model.train()
+    
     # Generate a dummy mini-batch and copy data to GPU
     im_size, batch_size = cfg.TRAIN.IM_SIZE, int(cfg.TRAIN.BATCH_SIZE / cfg.NUM_GPUS)
     if cfg.TASK == "jig":
@@ -57,9 +58,11 @@ def compute_time_train(model, loss_fun):
         labels = torch.zeros(batch_size, im_size, im_size, dtype=torch.int64).cuda(non_blocking=False)
     else:
         labels = torch.zeros(batch_size, dtype=torch.int64).cuda(non_blocking=False)
-    # Cache BatchNorm2D running stats
+    
+    # Cache BatchNorm2D running stats   将初始化的模型的BN参数存起来，跑完时间的benchmark之后，恢复
     bns = [m for m in model.modules() if isinstance(m, torch.nn.BatchNorm2d)]
     bn_stats = [[bn.running_mean.clone(), bn.running_var.clone()] for bn in bns]
+    
     # Compute precise forward backward pass time
     fw_timer, bw_timer = Timer(), Timer()
     total_iter = cfg.PREC_TIME.NUM_ITER + cfg.PREC_TIME.WARMUP_ITER
@@ -83,16 +86,17 @@ def compute_time_train(model, loss_fun):
         loss.backward()
         torch.cuda.synchronize()
         bw_timer.toc()
+    
     # Restore BatchNorm2D running stats
     for bn, (mean, var) in zip(bns, bn_stats):
-        bn.running_mean, bn.running_var = mean, var
+        bn.running_mean, bn.running_var = mean, var # 恢复bn数据
     return fw_timer.average_time, bw_timer.average_time
 
 
 def compute_time_loader(data_loader):
     """Computes loader time."""
     timer = Timer()
-    loader.shuffle(data_loader, 0)
+    loader.shuffle(data_loader, 0)  # 每一个epoch的batch排序是不同的，这里将其设置在第一个epoch来跑benchmark
     data_loader_iterator = iter(data_loader)
     total_iter = cfg.PREC_TIME.NUM_ITER + cfg.PREC_TIME.WARMUP_ITER
     total_iter = min(total_iter, len(data_loader))

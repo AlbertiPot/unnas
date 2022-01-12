@@ -67,13 +67,13 @@ def get_loss_fun():
 
 def build_model():
     """Builds the model."""
-    return get_model()()
+    return get_model()()    # 第二个括号是给返回的类名加上一个括号，表明返回了一个实例
 
 
 def build_loss_fun():
     """Build the loss function."""
     if cfg.TASK == "seg":
-        return get_loss_fun()(ignore_index=255)
+        return get_loss_fun()(ignore_index=255)     # 分割时，忽略index=255，这个index不贡献梯度
     else:
         return get_loss_fun()()
 

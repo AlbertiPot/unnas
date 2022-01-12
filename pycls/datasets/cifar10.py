@@ -47,7 +47,7 @@ class Cifar10(torch.utils.data.Dataset):
         elif cfg.TASK == 'jig':
             assert cfg.JIGSAW_GRID == 2
             assert cfg.MODEL.NUM_CLASSES == 24
-            # Jigsaw permutations; numpy array; shape (24, 4)
+            # Jigsaw permutations; numpy array; shape (24, 4)   分成2*2的grid，共4个patch 4!=24个排列，即24行，每行4个patch
             self._perms = np.load(os.path.join(folder, "files", "permutations_24.npy"))
         self._inputs, self._labels = self._load_data()
 
@@ -69,7 +69,9 @@ class Cifar10(torch.utils.data.Dataset):
             labels += data[b"labels"]
         # Combine and reshape the inputs
         inputs = np.vstack(inputs).astype(np.float32)
-        inputs = inputs.reshape((-1, 3, cfg.TRAIN.IM_SIZE, cfg.TRAIN.IM_SIZE))
+        inputs = inputs.reshape((-1, 3, cfg.TRAIN.IM_SIZE, cfg.TRAIN.IM_SIZE))  # datasize*3*h*w
+        
+        # 对训练集再分固定的portion
         if self._portion:
             # CIFAR-10 data are random, so no need to shuffle
             pos = int(self._portion * len(inputs))
@@ -81,7 +83,7 @@ class Cifar10(torch.utils.data.Dataset):
             return inputs, labels
 
     def __getitem__(self, index):
-        im, label = self._inputs[index, ...].copy(), self._labels[index]
+        im, label = self._inputs[index, ...].copy(), self._labels[index]    # 将第index个数据copy出来
         im = transforms.CHW2HWC(im)  # CHW, RGB -> HWC, RGB
         if cfg.TASK == 'rot':
             im, label = prepare_rot(im,

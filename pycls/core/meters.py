@@ -55,7 +55,7 @@ def topk_errors(preds, labels, ks):
     # (batch_size, ) -> (max_k, batch_size)
     rep_max_k_labels = labels.view(1, -1).expand_as(top_max_k_inds)
     # (i, j) = 1 if top i-th prediction for the j-th sample is correct
-    top_max_k_correct = top_max_k_inds.eq(rep_max_k_labels)
+    top_max_k_correct = top_max_k_inds.eq(rep_max_k_labels).contiguous()            # add .contiguous() to force the tensor to be contiguous for using the view function in the next line
     # Compute the number of topk correct predictions for each k
     topks_correct = [top_max_k_correct[:k, :].view(-1).float().sum() for k in ks]
     return [(1.0 - x / preds.size(0)) * 100.0 for x in topks_correct]
@@ -71,12 +71,12 @@ class ScalarMeter(object):
     """Measures a scalar value (adapted from Detectron)."""
 
     def __init__(self, window_size):
-        self.deque = deque(maxlen=window_size)
+        self.deque = deque(maxlen=window_size)  # double ended queue双端队列，两头进出
         self.total = 0.0
         self.count = 0
 
     def reset(self):
-        self.deque.clear()
+        self.deque.clear()  # 将队列清空
         self.total = 0.0
         self.count = 0
 
@@ -86,7 +86,7 @@ class ScalarMeter(object):
         self.total += value
 
     def get_win_median(self):
-        return np.median(self.deque)
+        return np.median(self.deque) # 中位数
 
     def get_win_avg(self):
         return np.mean(self.deque)
@@ -102,11 +102,11 @@ class TrainMeter(object):
         self.epoch_iters = epoch_iters
         self.max_iter = cfg.OPTIM.MAX_EPOCH * epoch_iters
         self.iter_timer = Timer()
-        self.loss = ScalarMeter(cfg.LOG_PERIOD)
+        self.loss = ScalarMeter(cfg.LOG_PERIOD)     # cfg.LOG_PERIOD是记录的最大长度，loss记录的默认长度是10
         self.loss_total = 0.0
         self.lr = None
         # Current minibatch errors (smoothed over a window)
-        self.mb_top1_err = ScalarMeter(cfg.LOG_PERIOD)
+        self.mb_top1_err = ScalarMeter(cfg.LOG_PERIOD)  # 在log长度内求平均
         self.mb_top5_err = ScalarMeter(cfg.LOG_PERIOD)
         # Number of misclassified examples
         self.num_top1_mis = 0
@@ -145,7 +145,7 @@ class TrainMeter(object):
 
     def get_iter_stats(self, cur_epoch, cur_iter):
         cur_iter_total = cur_epoch * self.epoch_iters + cur_iter + 1
-        eta_sec = self.iter_timer.average_time * (self.max_iter - cur_iter_total)
+        eta_sec = self.iter_timer.average_time * (self.max_iter - cur_iter_total)   # 预测还有多少时间训练完全部iters
         mem_usage = gpu_mem_usage()
         stats = {
             "epoch": "{}/{}".format(cur_epoch + 1, cfg.OPTIM.MAX_EPOCH),
@@ -286,8 +286,8 @@ class TrainMeterIoU(object):
 
         self.mb_miou = ScalarMeter(cfg.LOG_PERIOD)
 
-        self.num_inter = np.zeros(cfg.MODEL.NUM_CLASSES)
-        self.num_union = np.zeros(cfg.MODEL.NUM_CLASSES)
+        self.num_inter = np.zeros(cfg.MODEL.NUM_CLASSES)    # 交集
+        self.num_union = np.zeros(cfg.MODEL.NUM_CLASSES)    # 并集
         self.num_samples = 0
 
     def reset(self, timer=False):

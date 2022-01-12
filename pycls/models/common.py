@@ -15,7 +15,7 @@ def Preprocess(x):
     if cfg.TASK == 'jig':
         assert len(x.shape) == 5, 'Wrong tensor dimension for jigsaw'
         assert x.shape[1] == cfg.JIGSAW_GRID ** 2, 'Wrong grid for jigsaw'
-        x = x.view([x.shape[0] * x.shape[1], x.shape[2], x.shape[3], x.shape[4]])
+        x = x.view([x.shape[0] * x.shape[1], x.shape[2], x.shape[3], x.shape[4]])   # 如果是拼图的话，将batchsize和每个图的不同变种乘起来作为一个batch
     return x
 
 
@@ -85,7 +85,7 @@ class ASPP(nn.Module):
         )
         self.classifier = nn.Sequential(
             nn.Conv2d(out_channels * (len(rates) + 2), out_channels, 1,
-                bias=False),
+                bias=False),        # len(rates) = aspp2, aspp3, aspp4; 2包含aspp1和aspp5
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, num_classes, 1)

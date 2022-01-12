@@ -37,12 +37,12 @@ def _suppress_print():
     def ignore(*_objects, _sep=" ", _end="\n", _file=sys.stdout, _flush=False):
         pass
 
-    builtins.print = ignore
+    builtins.print = ignore # 将内置的print函数变成ignore数，即不打印任何东西
 
 
 def setup_logging():
     """Sets up the logging."""
-    # Enable logging only for the master process
+    # Enable logging only for the master process    只有主进程的logging才会被setup
     if dist.is_master_proc():
         # Clear the root logger to prevent any existing logging config
         # (e.g. set by another module) from messing with our setup
@@ -57,7 +57,7 @@ def setup_logging():
         # Configure logging
         logging.basicConfig(**logging_config)
     else:
-        _suppress_print()
+        _suppress_print()   # 其他进程设置成不打印
 
 
 def get_logger(name):

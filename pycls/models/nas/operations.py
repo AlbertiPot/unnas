@@ -188,14 +188,14 @@ class FactorizedReduce(nn.Module):
         super(FactorizedReduce, self).__init__()
         assert C_out % 2 == 0
         self.relu = nn.ReLU(inplace=False)
-        self.conv_1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
+        self.conv_1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)   # stride=2降低空间解析度，用两个卷积分别获得一半的通道，然后拼接
         self.conv_2 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.bn = nn.BatchNorm2d(C_out, affine=affine)
-        self.pad = nn.ConstantPad2d((0, 1, 0, 1), 0)
+        self.pad = nn.ConstantPad2d((0, 1, 0, 1), 0)            # 左，右，上，下各pad 0，1，0，1列，pad值是0
 
     def forward(self, x):
         x = self.relu(x)
         y = self.pad(x)
-        out = torch.cat([self.conv_1(x), self.conv_2(y[:,:,1:,1:])], dim=1)
+        out = torch.cat([self.conv_1(x), self.conv_2(y[:,:,1:,1:])], dim=1) # x[1, 32, 32, 32]pad过之后变成了y[1,32,33,33](右边和上边pad一列)，这里从后32个像素点开始卷y
         out = self.bn(out)
         return out

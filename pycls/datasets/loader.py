@@ -26,7 +26,7 @@ _DATASETS = {"cifar10": Cifar10,
              "cityscapes": Cityscapes}
 
 # Default data directory (/path/pycls/pycls/datasets/data)
-_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "data") # dirname获取当前的绝对路径， 即.../your project/pycls/datasets/ join 本文件夹下的data
 
 # Relative data paths to default data directory
 _PATHS = {"cifar10": "cifar10",
@@ -39,6 +39,7 @@ def _construct_loader(dataset_name, split, batch_size, shuffle, drop_last, porti
     """Constructs the data loader for the given dataset."""
     err_str = "Dataset '{}' not supported".format(dataset_name)
     assert dataset_name in _DATASETS and dataset_name in _PATHS, err_str
+    
     # Retrieve the data path for the dataset
     data_path = os.path.join(_DATA_DIR, _PATHS[dataset_name])
     # Construct the dataset
@@ -49,17 +50,18 @@ def _construct_loader(dataset_name, split, batch_size, shuffle, drop_last, porti
     if cfg.TASK == "rot":
         def _collate_fn(batch):
             batch = torch.utils.data.dataloader.default_collate(batch)
+            print(batch[0],batch[0].shape)
             assert(len(batch) == 2)
-            b, r, c, h, w = batch[0].size()
-            batch[0] = batch[0].view([b * r, c, h, w])
-            batch[1] = batch[1].view([b * r])
+            b, r, c, h, w = batch[0].size()             # batch_sz, rotation四个角度，通道，h，w
+            batch[0] = batch[0].view([b * r, c, h, w])  # 将bsz和旋转的4个角度相乘，即一个batch的数量是4倍的原bsz
+            batch[1] = batch[1].view([b * r])           # 标签
             return batch
         collate_fn = _collate_fn
     else:
         collate_fn = torch.utils.data.dataloader.default_collate
     # Create a loader
     loader = torch.utils.data.DataLoader(
-        dataset,
+        dataset,    # dataset中的prepare环节，由于涉及多线程，无法打断点验证
         batch_size=batch_size,
         shuffle=(False if sampler else shuffle),
         sampler=sampler,

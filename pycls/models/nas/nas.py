@@ -255,7 +255,9 @@ class NetworkImageNet(nn.Module):
 
 
 class NAS(nn.Module):
-    """NAS net wrapper (delegates to nets from DARTS)."""
+    """NAS net wrapper (delegates to nets from DARTS).
+        evaluate阶段用的模型类
+    """
 
     def __init__(self):
         assert cfg.TRAIN.DATASET in ['cifar10', 'imagenet', 'cityscapes'], \
@@ -264,8 +266,10 @@ class NAS(nn.Module):
             'Testing on {} is not supported'.format(cfg.TEST.DATASET)
         assert cfg.NAS.GENOTYPE in GENOTYPES, \
             'Genotype {} not supported'.format(cfg.NAS.GENOTYPE)
+        
         super(NAS, self).__init__()
         logger.info('Constructing NAS: {}'.format(cfg.NAS))
+        
         # Use a custom or predefined genotype
         if cfg.NAS.GENOTYPE == 'custom':
             genotype = Genotype(

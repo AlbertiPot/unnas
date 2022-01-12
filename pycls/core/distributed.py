@@ -58,14 +58,14 @@ def scaled_all_reduce(tensors):
     # Queue the reductions
     reductions = []
     for tensor in tensors:
-        reduction = torch.distributed.all_reduce(tensor, async_op=True)
+        reduction = torch.distributed.all_reduce(tensor, async_op=True) # 每一个进程都会得到求和的结果
         reductions.append(reduction)
     # Wait for reductions to finish
     for reduction in reductions:
         reduction.wait()
     # Scale the results
     for tensor in tensors:
-        tensor.mul_(1.0 / cfg.NUM_GPUS)
+        tensor.mul_(1.0 / cfg.NUM_GPUS) # 求平均
     return tensors
 
 
@@ -119,9 +119,9 @@ def run(proc_rank, world_size, error_queue, fun, fun_args, fun_kwargs):
     """Runs a function from a child process."""
     try:
         # Initialize the process group
-        init_process_group(proc_rank, world_size)
+        init_process_group(proc_rank, world_size)   # 这一步设定本进程的GPU，并且初始化分布式训练环境
         # Run the function
-        fun(*fun_args, **fun_kwargs)
+        fun(*fun_args, **fun_kwargs)                # 在初始化后的GPU上运行训练程序
     except KeyboardInterrupt:
         # Killed by the parent process
         pass
@@ -145,6 +145,7 @@ def multi_proc_run(num_proc, fun, fun_args=(), fun_kwargs=None):
     error_handler = ErrorHandler(error_queue)
     # Run each training subprocess
     ps = []
+    # 一个进程负责初始化一个GPU
     for i in range(num_proc):
         p_i = multiprocessing.Process(
             target=run, args=(i, num_proc, error_queue, fun, fun_args, fun_kwargs)

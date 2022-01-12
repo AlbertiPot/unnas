@@ -14,11 +14,11 @@ from pycls.core.config import cfg
 
 
 def prepare_rot(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
-    im = prepare_im(im, dataset, split, mean, sd, eig_vals, eig_vecs)
+    im = prepare_im(im, dataset, split, mean, sd, eig_vals, eig_vecs)   # HWC→CHW， 图像增广，翻转，crop等
     rot_im = []
     for i in range(4):
-        rot_im.append(np.rot90(im, i, (1, 2)))
-    im = np.stack(rot_im, axis=0)
+        rot_im.append(np.rot90(im, i, (1, 2))) #(1,2)指 H，W轴旋转i*90°
+    im = np.stack(rot_im, axis=0)   # [(C,H,W),(C,H,W),(C,H,W),(C,H,W)] → (4,C,H,W)
     label = np.array([0, 1, 2, 3])
     return im, label
 
@@ -40,7 +40,7 @@ def prepare_col(im, dataset, split, nbrs, mean, sd, eig_vals=None, eig_vecs=None
     if split == "train":
         im = transforms.horizontal_flip(im=im, p=0.5, order="HWC")  # Best before rgb2lab because otherwise need to flip together with label
     im_lab = color.rgb2lab(im.astype(np.uint8, copy=False))
-    im = transforms.HWC2CHW(im_lab[:, :, 0:1]).astype(np.float32, copy=False)
+    im = transforms.HWC2CHW(im_lab[:, :, 0:1]).astype(np.float32, copy=False)   # 把im_lab图像的L通道作为im, 剩下的ab通道作为label
     # Ad hoc normalization of the L channel
     im = im / 100.0
     im = im - np.mean(mean)

@@ -44,7 +44,7 @@ def horizontal_flip(im, p, order="CHW"):
     assert order in ["CHW", "HWC"]
     if np.random.uniform() < p:
         if order == "CHW":
-            im = im[:, :, ::-1]
+            im = im[:, :, ::-1]  # 负表示倒着取，step为1
         else:
             im = im[:, ::-1, :]
     return im
