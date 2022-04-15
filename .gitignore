@@ -33,3 +33,4 @@ figs/*.pdf
 result/
 *.log
 tmp/
+pycls/datasets/data

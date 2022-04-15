@@ -515,8 +515,8 @@ def load_cfg_fom_args(description="Config file options."):
     help_s = "Config file location"
     parser.add_argument("--cfg", dest="cfg_file", help=help_s, required=True, type=str)
     help_s = "See pycls/core/config.py for all options"
-    parser.add_argument("opts", help=help_s, default=None, nargs=argparse.REMAINDER)    # 所有剩余的参数，转化为一个列表赋值给此项
-    if len(sys.argv) == 1:      # 获取python后面的参数，例如 python a.py OUT_DIR, 则sys.argv输出是 ['a.py', 'OUT_DIR'] 若是只有
+    parser.add_argument("opts", help=help_s, default=None, nargs=argparse.REMAINDER)    # 所有剩余的参数，转化为一个list赋值给此项 ['OUT_DIR' 'result/search_c10_cls_${time}']
+    if len(sys.argv) == 1:      # 获取python后面的参数，例如 python a.py OUT_DIR, 则sys.argv输出是 ['a.py', 'OUT_DIR'] 若是只有a.py退出
         parser.print_help()
         sys.exit(1)
     args = parser.parse_args()
