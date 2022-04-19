@@ -83,8 +83,8 @@ class Network(nn.Module):
         self._steps = steps
         self._multiplier = multiplier
 
-        if 'cifar' in cfg.TRAIN.DATASET:
-            logger.info('Using CIFAR10 stem')
+        if 'cifar' in cfg.TRAIN.DATASET:            # C10和C100都通用的stem
+            logger.info('Using CIFAR10/CIFAR100 stem')
             C_curr = stem_multiplier*C  # 输出channel
             # stem for cifar：处理cifar10数据集图片
             self.stem = nn.Sequential(
@@ -205,7 +205,7 @@ class NAS_Search(nn.Module):
     """NAS net wrapper (delegates to nets from DARTS)."""
 
     def __init__(self):
-        assert cfg.TRAIN.DATASET in ['cifar10', 'imagenet', 'imagenet22k', 'cityscapes'], \
+        assert cfg.TRAIN.DATASET in ['cifar10', 'cifar100', 'imagenet', 'imagenet22k', 'cityscapes'], \
             'Training on {} is not supported'.format(cfg.TRAIN.DATASET)
         super(NAS_Search, self).__init__()
         logger.info('Constructing NAS_Search: {}'.format(cfg.NAS))
@@ -223,8 +223,13 @@ class NAS_Search(nn.Module):
             criterion=criterion
         )
 
-    def _loss(self, input, target):
-        return self.net_._loss(input, target)
+    def _loss(self, inputsB, labelsB):
+        # if cfg.UNROLLED:
+        #     raise NotImplementedError
+        #     # 2-nd approximation
+        #     self._backward_step_unrolled(input_train, target_train, inputsB, labelsB, eta, network_optimizer)
+        # else:
+        return self.net_._loss(inputsB, labelsB)
 
     def arch_parameters(self):
         return self.net_.arch_parameters()
@@ -234,3 +239,73 @@ class NAS_Search(nn.Module):
 
     def forward(self, x):
         return self.net_.forward(x)
+
+    #  below are adapted from darts for 2nd approximation
+    
+    # def _backward_step_unrolled(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer):
+    #     unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer) # 在训练集计算w` = w - xigma*Ltrain(w,a)，以w`创建新模型
+    #     unrolled_loss = unrolled_model._loss(input_valid, target_valid)
+
+    #     unrolled_loss.backward() # 以w`创建的模型计算一次前向
+    #     dalpha = [v.grad for v in unrolled_model.arch_parameters()] # 提取结构参数的梯度
+    #     vector = [v.grad.data for v in unrolled_model.parameters()] # 提取权重在val上的梯度 ##### 注意这里unrolled模型的使命到此为止，其模型仅仅是为了计算w`，提取出参数到vector和dalpha后放弃
+    #     implicit_grads = self._hessian_vector_product(vector, input_train, target_train)
+
+    #     for g, ig in zip(dalpha, implicit_grads): # w* 的梯度减去二阶梯度估计后，得到新的梯度
+    #         g.data.sub_(other = ig.data, alpha = eta)
+
+    #     for v, g in zip(self.model.arch_parameters(), dalpha): # 将上一个循环得到新的梯度赋值给现在的梯度，类似于backward()
+    #         if v.grad is None:
+    #             v.grad = Variable(g.data)
+    #         else:
+    #             v.grad.data.copy_(g.data)
+
+    # def _compute_unrolled_model(self, input, target, eta, network_optimizer): 
+    #     loss = self.model._loss(input, target)  # 计算train上的loss
+    #     theta = _concat(self.model.parameters()).data # 将模型的权重拼接为1行后，用.data取出tensor本体数据，舍弃grad, grad_fn等额外的反向图计算过程需要的信息
+    #     try:
+    #         # optimizer.state 是一个字典，key是网络的权重，value是上一步的动量，本行是更新动量
+    #         moment = _concat(network_optimizer.state[v]['momentum_buffer'] for v in self.model.parameters()).mul_(self.network_momentum) # 从optimizer的缓存中提取上一步的动量，乘上动量系数构成这一步的动量
+    #     except:
+    #         moment = torch.zeros_like(theta)
+        
+    #     # torch.autograd.grad是计算形参第一个变量对第二个变量的梯度和
+    #     dtheta = _concat(torch.autograd.grad(loss, self.model.parameters())).data + self.network_weight_decay*theta # 总梯度：weight_decay×权重 + loss对w的梯度 
+    #     # 手动更新好算子的权重参数后，创建一个保留结构参数的新的模型
+    #     unrolled_model = self._construct_model_from_theta(theta.sub(other=moment+dtheta, alpha = eta)) # sub(eta, moment+dtheta)更改为sub(other,*,alpha) → w` = w -signma(moment+J_train(loss对w的梯度) + weight_decay*w)
+    #     return unrolled_model
+
+    # def _construct_model_from_theta(self, theta):
+    #     model_new = self.model.new() # 创建一个保留结构参数的新模型
+    #     model_dict = self.model.state_dict()
+
+    #     params, offset = {}, 0
+    #     for k, v in self.model.named_parameters():
+    #         v_length = np.prod(v.size()) # 计算一层参数的长度
+    #         params[k] = theta[offset: offset+v_length].view(v.size())
+    #         offset += v_length
+
+    #     assert offset == len(theta)
+    #     model_dict.update(params) # 将截取的参数放入字典中
+    #     model_new.load_state_dict(model_dict) # 将前向一次的参数赋给新的模型
+    #     return model_new.cuda()
+
+    # def _hessian_vector_product(self, vector, input, target, r=1e-2):
+    #     R = r / _concat(vector).norm() # vector是权重参数的梯度的2范数
+    
+    #     # 计算train 上 w+对a的梯度
+    #     for p, v in zip(self.model.parameters(), vector):
+    #         p.data.add_(other = v, alpha = R) # p.data in_place加更新模型的参数，即w+ = w+R*v
+    #     loss = self.model._loss(input, target)
+    #     grads_p = torch.autograd.grad(loss, self.model.arch_parameters()) # p = positive前向一步
+
+        
+    #     for p, v in zip(self.model.parameters(), vector):
+    #         p.data.sub_(other = v, alpha =  2*R) # w- = w-2R*v /v 是w`对a的梯度
+    #     loss = self.model._loss(input, target)
+    #     grads_n = torch.autograd.grad(loss, self.model.arch_parameters()) # n = negative，后向一步
+
+    #     for p, v in zip(self.model.parameters(), vector): # 计算完后恢复梯度（w- + v*R  →  w）
+    #         p.data.add_(other = v, alpha = R)
+
+    #     return [(x-y).div_(2*R) for x, y in zip(grads_p, grads_n)]

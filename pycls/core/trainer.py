@@ -172,7 +172,7 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
     # Enable training mode
     model.train()
     train_meter.iter_tic()
-    trainB_iter = iter(train_loader[1])     # 优化结构参数的数据
+    trainB_iter = iter(train_loader[1])     # 优化结构参数的dataloader
     for cur_iter, (inputs, labels) in enumerate(train_loader[0]):
         # Update the learning rate per iter
         if cfg.OPTIM.ITER_LR:
@@ -183,7 +183,7 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
         inputs, labels = inputs.cuda(), labels.cuda(non_blocking=True)  
        
         # Update architecture 开始用另一半数据训练结构参数
-        if cur_epoch + cur_iter / len(train_loader[0]) >= cfg.OPTIM.ARCH_EPOCH: # cfg.OPTIM.ARCH_EPOCH = 0时，每个epoch第一个iter，应该先a更新一下，然后再训一下权重w
+        if cur_epoch + cur_iter / len(train_loader[0]) >= cfg.OPTIM.ARCH_EPOCH: # cfg.OPTIM.ARCH_EPOCH = 1，第一个epoch更新权重w，只有第二个epoch才开始更新α
             try:
                 inputsB, labelsB = next(trainB_iter)
             except StopIteration:
@@ -192,7 +192,7 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
             inputsB, labelsB = inputsB.cuda(), labelsB.cuda(non_blocking=True)
             
             optimizer[1].zero_grad()        # optimizer1 负责优化结构参数α
-            loss = m._loss(inputsB, labelsB)
+            loss = m._loss(inputsB, labelsB)# 在训练集的rside前向一次，计算loss，!!!!这里仅仅是一阶更新
             loss.backward()
             optimizer[1].step()             # 更新结构参数
         
@@ -228,7 +228,7 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
         # Copy the stats from GPU to CPU (sync point)
         loss = loss.item()
         if cfg.TASK == "seg":
-            top1_err, top5_err = top1_err.cpu().numpy(), top5_err.cpu().numpy()
+            top1_err, top5_err = top1_err.cpu().numpy(), top5_err.cpu().numpy()         # 在meters中计算iou用了torch，仍在gpu上
         else:
             top1_err, top5_err = top1_err.item(), top5_err.item()
         train_meter.iter_toc()
@@ -298,7 +298,7 @@ def train_model():
     loss_fun = builders.build_loss_fun().cuda()
     
     # 设置被搜索的参数
-    # if上分支是darts的优化器构建部分，else分支调用函数来构建通用的优化器
+    # if上分支是darts搜索时的优化器构建部分，else分支是darts做eval的
     if "search" in cfg.MODEL.TYPE:
         params_w = [v for k, v in model.named_parameters() if "alphas" not in k]    # 算子权重参数
         params_a = [v for k, v in model.named_parameters() if "alphas" in k]        # 算子的结构参数

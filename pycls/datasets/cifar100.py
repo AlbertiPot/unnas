@@ -1,11 +1,6 @@
-#!/usr/bin/env python3
+# modified from CIFAR10
 
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
-"""CIFAR10 dataset."""
+"""CIFAR100 dataset."""
 
 import os
 import pickle
@@ -26,20 +21,22 @@ logger = logging.get_logger(__name__)
 folder = os.path.dirname(os.path.realpath(__file__))
 
 # Per-channel mean and SD values in RGB order
-_MEAN = [x / 255.0 for x in [125.3, 123.0, 113.9]]
-_SD = [x / 255.0 for x in [63.0, 62.1, 66.7]]
+_MEAN = [0.5071, 0.4867, 0.4408]
+_SD = [0.2675, 0.2565, 0.2761]
 
 
-class Cifar10(torch.utils.data.Dataset):
-    """CIFAR-10 dataset."""
+class Cifar100(torch.utils.data.Dataset):
+    """CIFAR-100 dataset."""
 
     def __init__(self, data_path, split, portion=None, side=None):
         assert os.path.exists(data_path), "Data path '{}' not found".format(data_path)
         splits = ["train", "test"]
         assert split in splits, "Split '{}' not supported for cifar".format(split)
-        logger.info("Constructing CIFAR-10 {}...".format(split))
+        logger.info("Constructing CIFAR-100 {}...".format(split))
         self._data_path, self._split = data_path, split
         self._portion, self._side = portion, side
+        
+        # TODO: 测试if elif语句是不是符合cifar100
         if cfg.TASK == 'col':
             # Color centers in ab channels; numpy array; shape (313, 2)
             self._pts = np.load(os.path.join(folder, "files", "pts_in_hull.npy"))
@@ -49,6 +46,7 @@ class Cifar10(torch.utils.data.Dataset):
             assert cfg.MODEL.NUM_CLASSES == 24
             # Jigsaw permutations; numpy array; shape (24, 4)   分成2*2的grid，共4个patch 4!=24个排列，即24行，每行4个patch
             self._perms = np.load(os.path.join(folder, "files", "permutations_24.npy"))
+        
         self._inputs, self._labels = self._load_data()
 
     def _load_data(self):
@@ -56,24 +54,24 @@ class Cifar10(torch.utils.data.Dataset):
         logger.info("{} data path: {}".format(self._split, self._data_path))
         # Compute data batch names
         if self._split == "train":
-            batch_names = ["data_batch_{}".format(i) for i in range(1, 6)]
+            batch_names = "train"
         else:
-            batch_names = ["test_batch"]
+            batch_names = "test"
         # Load data batches
         inputs, labels = [], []
-        for batch_name in batch_names:
-            batch_path = os.path.join(self._data_path, batch_name)
-            with open(batch_path, "rb") as f:
+        batch_path = os.path.join(self._data_path, batch_names)
+        with open(batch_path, "rb") as f:
                 data = pickle.load(f, encoding="bytes")
-            inputs.append(data[b"data"])
-            labels += data[b"labels"]
+        inputs.append(data[b'data'])
+        labels += data[b'fine_labels']
+        
         # Combine and reshape the inputs
-        inputs = np.vstack(inputs).astype(np.float32)
-        inputs = inputs.reshape((-1, 3, cfg.TRAIN.IM_SIZE, cfg.TRAIN.IM_SIZE))  # datasize*3*h*w
+        inputs = np.vstack(inputs).astype(np.float32) # 这里将图片转化为(50000, 3072)，3072 = 1024R 1024G 1024B
+        inputs = inputs.reshape((-1, 3, cfg.TRAIN.IM_SIZE, cfg.TRAIN.IM_SIZE))  # datasize*c*h*w
         
         # 对训练集再分固定的portion
         if self._portion:
-            # CIFAR-10 data are random, so no need to shuffle
+            # CIFAR-100 data are random, so no need to shuffle
             pos = int(self._portion * len(inputs))
             if self._side == "l":
                 return inputs[:pos], labels[:pos]
@@ -83,31 +81,32 @@ class Cifar10(torch.utils.data.Dataset):
             return inputs, labels
 
     def __getitem__(self, index):
+        # TODO: 【检查以下】是不是适合cifar100，prepare中加上cifar100
         im, label = self._inputs[index, ...].copy(), self._labels[index]    # 将第index个数据copy出来
         im = transforms.CHW2HWC(im)  # CHW, RGB -> HWC, RGB
         if cfg.TASK == 'rot':
             im, label = prepare_rot(im,
-                                    dataset="cifar10",
+                                    dataset="cifar100",
                                     split=self._split,
                                     mean=_MEAN,
                                     sd=_SD)
         elif cfg.TASK == 'col':
             im, label = prepare_col(im,
-                                    dataset="cifar10",
+                                    dataset="cifar100",
                                     split=self._split,
                                     nbrs=self._nbrs,
                                     mean=_MEAN,
                                     sd=_SD)
         elif cfg.TASK == 'jig':
             im, label = prepare_jig(im,
-                                    dataset="cifar10",
+                                    dataset="cifar100",
                                     split=self._split,
                                     perms=self._perms,
                                     mean=_MEAN,
                                     sd=_SD)
         else:
             im = prepare_im(im,
-                            dataset="cifar10",
+                            dataset="cifar100",
                             split=self._split,
                             mean=_MEAN,
                             sd=_SD)

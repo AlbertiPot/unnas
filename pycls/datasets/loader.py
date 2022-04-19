@@ -12,6 +12,7 @@ import os
 import torch
 from pycls.core.config import cfg
 from pycls.datasets.cifar10 import Cifar10
+from pycls.datasets.cifar100 import Cifar100
 from pycls.datasets.imagenet import ImageNet
 from pycls.datasets.imagenet22k import ImageNet22k
 from pycls.datasets.cityscapes import Cityscapes
@@ -20,7 +21,8 @@ from torch.utils.data.sampler import RandomSampler
 
 
 # Supported datasets
-_DATASETS = {"cifar10": Cifar10,
+_DATASETS = {"cifar10": Cifar10, 
+             "cifar100": Cifar100,
              "imagenet": ImageNet,
              "imagenet22k": ImageNet22k,
              "cityscapes": Cityscapes}
@@ -29,7 +31,8 @@ _DATASETS = {"cifar10": Cifar10,
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data") # dirname获取当前的绝对路径， 即.../your project/pycls/datasets/ join 本文件夹下的data
 
 # Relative data paths to default data directory
-_PATHS = {"cifar10": "cifar10",
+_PATHS = {"cifar10": "cifar10", 
+          "cifar100": "cifar100",
           "imagenet": "imagenet",
           "imagenet22k": "imagenet22k",
           "cityscapes": "cityscapes"}
@@ -50,11 +53,13 @@ def _construct_loader(dataset_name, split, batch_size, shuffle, drop_last, porti
     if cfg.TASK == "rot":
         def _collate_fn(batch):
             batch = torch.utils.data.dataloader.default_collate(batch)
-            print(batch[0],batch[0].shape)
+            # print(batch[0],batch[0].shape)
+            # print("Before collate ", batch[0].shape, batch[1].shape)
             assert(len(batch) == 2)
             b, r, c, h, w = batch[0].size()             # batch_sz, rotation四个角度，通道，h，w
             batch[0] = batch[0].view([b * r, c, h, w])  # 将bsz和旋转的4个角度相乘，即一个batch的数量是4倍的原bsz
             batch[1] = batch[1].view([b * r])           # 标签
+            # print("After collate ", batch[0].shape, batch[1].shape)
             return batch
         collate_fn = _collate_fn
     else:

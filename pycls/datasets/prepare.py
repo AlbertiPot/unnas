@@ -17,7 +17,7 @@ def prepare_rot(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
     im = prepare_im(im, dataset, split, mean, sd, eig_vals, eig_vecs)   # HWC→CHW， 图像增广，翻转，crop等
     rot_im = []
     for i in range(4):
-        rot_im.append(np.rot90(im, i, (1, 2))) #(1,2)指 H，W轴旋转i*90°
+        rot_im.append(np.rot90(im, i, (1, 2))) #i指转90度的次数，(1,2)指 H，W轴旋转i*90°
     im = np.stack(rot_im, axis=0)   # [(C,H,W),(C,H,W),(C,H,W),(C,H,W)] → (4,C,H,W)
     label = np.array([0, 1, 2, 3])
     return im, label
@@ -129,15 +129,16 @@ def prepare_im(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
             im = transforms.scale(cfg.TEST.IM_SIZE, im)
             # Crop
             im = transforms.center_crop(train_size, im)
+    # above (HWC, RGB) below (CHW, RGB)
     im = transforms.HWC2CHW(im)
     im = im / 255.0
-    if "cifar" not in dataset:
+    if "cifar" not in dataset:  # ！！！当数据集为cifar时，归一用的mean和sd为rgb order，当为其他时，应该为BGR
         im = im[:, :, ::-1]  # RGB -> BGR
         # PCA jitter
         if split == "train":
             im = transforms.lighting(im, 0.1, eig_vals, eig_vecs)
     # Color normalization
-    im = transforms.color_norm(im, mean, sd)
+    im = transforms.color_norm(im, mean, sd)    # 这里的mean 和sd是rgb for cifar，bgr for imagenet
     if "cifar" in dataset:
         if split == "train":
             im = transforms.horizontal_flip(im=im, p=0.5)

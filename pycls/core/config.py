@@ -192,7 +192,7 @@ _C.NAS = CfgNode()
 _C.NAS.GENOTYPE = 'nas'
 
 # Custom genotype
-# 如果享用自己搜出来的结构，在这里填好
+# 如果用自己搜出来的结构，在这里填好
 _C.NAS.CUSTOM_GENOTYPE = [
                             [
                                 ('sep_conv_3x3', 1), 
@@ -461,6 +461,9 @@ _C.PORT = 10001
 
 # Models weights referred to by URL are downloaded to this local cache
 _C.DOWNLOAD_CACHE = "/tmp/pycls-download-cache"
+
+# Using 2nd-order approximation, set following to True
+# _C.UNROLLED = True
 
 
 # ------------------------------------------------------------------------------------ #

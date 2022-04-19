@@ -260,9 +260,9 @@ class NAS(nn.Module):
     """
 
     def __init__(self):
-        assert cfg.TRAIN.DATASET in ['cifar10', 'imagenet', 'cityscapes'], \
+        assert cfg.TRAIN.DATASET in ['cifar10', 'cifar100', 'imagenet', 'cityscapes'], \
             'Training on {} is not supported'.format(cfg.TRAIN.DATASET)
-        assert cfg.TEST.DATASET in ['cifar10', 'imagenet', 'cityscapes'], \
+        assert cfg.TEST.DATASET in ['cifar10', 'cifar100', 'imagenet', 'cityscapes'], \
             'Testing on {} is not supported'.format(cfg.TEST.DATASET)
         assert cfg.NAS.GENOTYPE in GENOTYPES, \
             'Genotype {} not supported'.format(cfg.NAS.GENOTYPE)
