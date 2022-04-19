@@ -2,10 +2,31 @@ export PYTHONPATH=.
 time=$(date "+%Y%m%d_%H%M%S")
 
 # search on c100 with rot
-CUDA_VISIBLE_DEVICES=1 nohup python -u tools/train_net.py \
-    --cfg configs/search_based/search_phase/cifar100/rot.yaml \
-    OUT_DIR result/search_rot_c100_v1rotc100seed5555_${time} \
-    RNG_SEED 5555 > search_rot_c100_v1rotc100seed5555.log 2>&1 &
+# CUDA_VISIBLE_DEVICES=1 nohup python -u tools/train_net.py \
+#     --cfg configs/search_based/search_phase/cifar100/rot.yaml \
+#     OUT_DIR result/search_rot_c100_v1rotc100seed5555_${time} \
+#     RNG_SEED 5555 > search_rot_c100_v1rotc100seed5555.log 2>&1 &
+
+# search on c100 with jig
+# CUDA_VISIBLE_DEVICES=0 nohup python -u tools/train_net.py \
+#     --cfg configs/search_based/search_phase/cifar100/jig.yaml \
+#     OUT_DIR result/search_jig_c100_v1jigc100seed2_${time} \
+#     RNG_SEED 2 > search_jig_c100_v1jigc100seed2.log 2>&1 &
+
+# CUDA_VISIBLE_DEVICES=1 nohup python -u tools/train_net.py \
+#     --cfg configs/search_based/search_phase/cifar100/jig.yaml \
+#     OUT_DIR result/search_jig_c100_v1jigc100seed5555_${time} \
+#     RNG_SEED 5555 > search_jig_c100_v1jigc100seed5555.log 2>&1 &
+
+# CUDA_VISIBLE_DEVICES=2 nohup python -u tools/train_net.py \
+#     --cfg configs/search_based/search_phase/cifar100/jig.yaml \
+#     OUT_DIR result/search_jig_c100_v1jigc100seed7777_${time} \
+#     RNG_SEED 7777 > search_jig_c100_v1jigc100seed7777.log 2>&1 &
+
+# CUDA_VISIBLE_DEVICES=3 nohup python -u tools/train_net.py \
+#     --cfg configs/search_based/search_phase/cifar100/jig.yaml \
+#     OUT_DIR result/search_jig_c100_v1jigc100seed9999_${time} \
+#     RNG_SEED 9999 > search_jig_c100_v1jigc100seed9999.log 2>&1 &
 
 # search on c100 with cls
 # CUDA_VISIBLE_DEVICES=1 nohup python -u tools/train_net.py \
@@ -20,7 +41,7 @@ CUDA_VISIBLE_DEVICES=1 nohup python -u tools/train_net.py \
 #     RNG_SEED 0 > eval_c100_v2c10org.log 2>&1 &
 
 ################# debug
-# CUDA_VISIBLE_DEVICES=1 python tools/train_net.py \
-#     --cfg configs/search_based/search_phase/cifar100/rot.yaml \
-#     OUT_DIR result/rot_debug \
-#     RNG_SEED 9999 # > rot_debug.log 2>&1 &
+CUDA_VISIBLE_DEVICES=1 python tools/train_net.py \
+    --cfg configs/search_based/search_phase/cifar100/jig.yaml \
+    OUT_DIR result/jig_debug \
+    RNG_SEED 9999 # > rot_debug.log 2>&1 &

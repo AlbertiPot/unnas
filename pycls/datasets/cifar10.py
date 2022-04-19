@@ -48,7 +48,7 @@ class Cifar10(torch.utils.data.Dataset):
             assert cfg.JIGSAW_GRID == 2
             assert cfg.MODEL.NUM_CLASSES == 24
             # Jigsaw permutations; numpy array; shape (24, 4)   分成2*2的grid，共4个patch 4!=24个排列，即24行，每行4个patch
-            self._perms = np.load(os.path.join(folder, "files", "permutations_24.npy"))
+            self._perms = np.load(os.path.join(folder, "files", "permutations_24.npy")) # 存储[0,1,2,3]位置的24个排列
         self._inputs, self._labels = self._load_data()
 
     def _load_data(self):

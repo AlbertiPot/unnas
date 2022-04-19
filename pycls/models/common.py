@@ -13,9 +13,9 @@ from pycls.core.config import cfg
 
 def Preprocess(x):
     if cfg.TASK == 'jig':
-        assert len(x.shape) == 5, 'Wrong tensor dimension for jigsaw'
+        assert len(x.shape) == 5, 'Wrong tensor dimension for jigsaw'       # (batchsz, grid^2, c,h,w)
         assert x.shape[1] == cfg.JIGSAW_GRID ** 2, 'Wrong grid for jigsaw'
-        x = x.view([x.shape[0] * x.shape[1], x.shape[2], x.shape[3], x.shape[4]])   # 如果是拼图的话，将batchsize和每个图的不同变种乘起来作为一个batch
+        x = x.view([x.shape[0] * x.shape[1], x.shape[2], x.shape[3], x.shape[4]])   # (bsz*grid^2,c,h,w)
     return x
 
 
@@ -37,8 +37,8 @@ class Classifier(nn.Module):
     def forward(self, x, shape):
         if cfg.TASK == 'jig':
             x = self.pooling(x)
-            x = x.view([x.shape[0] // self.jig_sq, x.shape[1] * self.jig_sq, x.shape[2], x.shape[3]])
-            x = self.classifier(x.view(x.size(0), -1))
+            x = x.view([x.shape[0] // self.jig_sq, x.shape[1] * self.jig_sq, x.shape[2], x.shape[3]])   # (bsz*grid^2, c, 1, 1) → (bsz, c*grid^2, 1,1), 后两维度是1是因为pool输出的维度是1
+            x = self.classifier(x.view(x.size(0), -1))  # (bsz, c*grid^2 * 1 *1)
         elif cfg.TASK in ['col', 'seg']:
             x = self.classifier(x)
             x = nn.Upsample(shape, mode='bilinear', align_corners=True)(x)

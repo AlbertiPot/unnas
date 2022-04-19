@@ -51,6 +51,7 @@ def prepare_col(im, dataset, split, nbrs, mean, sd, eig_vals=None, eig_vecs=None
 
 
 def prepare_jig(im, dataset, split, perms, mean, sd, eig_vals=None, eig_vecs=None):
+    # im = HWC
     if "cifar" not in dataset:
         train_size = cfg.TRAIN.IM_SIZE
         if split == "train":
@@ -67,9 +68,11 @@ def prepare_jig(im, dataset, split, perms, mean, sd, eig_vals=None, eig_vecs=Non
     if split == "train":
         im = transforms.horizontal_flip(im=im, p=0.5, order="HWC")
         if np.random.uniform() < cfg.TRAIN.GRAY_PERCENTAGE:
+            # 1)图片的像素必须是整数，不是float；
+            # 2)转换出来的灰度图是(32,32), 归一在0~1范围内，需要乘上255到0~255范围内
             im = color.rgb2gray(im.astype(np.uint8, copy=False)) * 255.0
-            im = np.expand_dims(im, axis=2)
-            im = np.tile(im, (1, 1, 3))
+            im = np.expand_dims(im, axis=2) # (HWC)=(32,32,1)
+            im = np.tile(im, (1, 1, 3)) # (32,32,3),每个像素的3个通道都是相同的灰度值
     im = transforms.HWC2CHW(im)
     im = im / 255.0
     if "cifar" not in dataset:
@@ -84,21 +87,22 @@ def prepare_jig(im, dataset, split, perms, mean, sd, eig_vals=None, eig_vecs=Non
     perm = perms[label]
     # Crop tiles
     psz = int(cfg.TRAIN.IM_SIZE / cfg.JIGSAW_GRID)  # Patch size
-    tsz = int(psz * 0.76)  # Tile size; int(85 * 0.76) = 64
-    tiles = np.zeros((cfg.JIGSAW_GRID ** 2, 3, tsz, tsz)).astype(np.float32)
+    tsz = int(psz * 0.76)  # Tile size; int(16 * 0.76) = 12
+    tiles = np.zeros((cfg.JIGSAW_GRID ** 2, 3, tsz, tsz)).astype(np.float32) # (4,3,12,12)
+    # CHW
     for i in range(cfg.JIGSAW_GRID):
         for j in range(cfg.JIGSAW_GRID):
             patch = im[:, psz * i:psz * (i+1), psz * j:psz * (j+1)]
             # Gap
-            h = np.random.randint(psz - tsz + 1)
+            h = np.random.randint(psz - tsz + 1) # [0,5)
             w = np.random.randint(psz - tsz + 1)
-            tile = patch[:, h:h+tsz, w:w+tsz]
+            tile = patch[:, h:h+tsz, w:w+tsz]   # 从(16,16)中抽出一个tile
             # Normalization
             mu, sigma = np.mean(tile), np.std(tile)
             tile = tile - mu
             tile = tile / sigma
             tiles[perm[cfg.JIGSAW_GRID * i + j]] = tile
-    return tiles, label
+    return tiles, label # tiles(4,3,12,12)是按照label对应的排列排序的拼图块，预测
 
 
 def prepare_im(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
