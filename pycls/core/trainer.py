@@ -396,9 +396,9 @@ def train_model():
     test_meter = test_meter_type(len(test_loader))
     
     # Compute model and loader timings
-    if start_epoch == 0 and cfg.PREC_TIME.NUM_ITER > 0:
-        l = train_loader[0] if isinstance(train_loader, list) else train_loader
-        benchmark.compute_time_full(model, loss_fun, l, test_loader)    # 跑一下计算和dataloader的时间
+    # if start_epoch == 0 and cfg.PREC_TIME.NUM_ITER > 0:
+    #     l = train_loader[0] if isinstance(train_loader, list) else train_loader
+    #     benchmark.compute_time_full(model, loss_fun, l, test_loader)    # 跑一下计算和dataloader的时间
     
     # Perform the training loop
     logger.info("Start epoch: {}".format(start_epoch + 1))
