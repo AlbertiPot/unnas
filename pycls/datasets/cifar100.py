@@ -36,7 +36,6 @@ class Cifar100(torch.utils.data.Dataset):
         self._data_path, self._split = data_path, split
         self._portion, self._side = portion, side
         
-        # TODO: 测试if elif语句是不是符合cifar100
         if cfg.TASK == 'col':
             # Color centers in ab channels; numpy array; shape (313, 2)
             self._pts = np.load(os.path.join(folder, "files", "pts_in_hull.npy"))
@@ -81,7 +80,6 @@ class Cifar100(torch.utils.data.Dataset):
             return inputs, labels
 
     def __getitem__(self, index):
-        # TODO: 【检查以下】是不是适合cifar100，prepare中加上cifar100
         im, label = self._inputs[index, ...].copy(), self._labels[index]    # 将第index个数据copy出来
         im = transforms.CHW2HWC(im)  # CHW, RGB -> HWC, RGB
         if cfg.TASK == 'rot':

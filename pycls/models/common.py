@@ -27,7 +27,7 @@ class Classifier(nn.Module):
             self.pooling = nn.AdaptiveAvgPool2d(1)
             self.classifier = nn.Linear(channels * self.jig_sq, num_classes)
         elif cfg.TASK == 'col':
-            self.classifier = nn.Conv2d(channels, num_classes, kernel_size=1, stride=1)
+            self.classifier = nn.Conv2d(channels, num_classes, kernel_size=1, stride=1) # num_classes=313
         elif cfg.TASK == 'seg':
             self.classifier = ASPP(channels, cfg.MODEL.ASPP_CHANNELS, num_classes, cfg.MODEL.ASPP_RATES)
         else:
@@ -40,8 +40,8 @@ class Classifier(nn.Module):
             x = x.view([x.shape[0] // self.jig_sq, x.shape[1] * self.jig_sq, x.shape[2], x.shape[3]])   # (bsz*grid^2, c, 1, 1) → (bsz, c*grid^2, 1,1), 后两维度是1是因为pool输出的维度是1
             x = self.classifier(x.view(x.size(0), -1))  # (bsz, c*grid^2 * 1 *1)
         elif cfg.TASK in ['col', 'seg']:
-            x = self.classifier(x)
-            x = nn.Upsample(shape, mode='bilinear', align_corners=True)(x)
+            x = self.classifier(x)  # [1, 256, 8, 8] → [1, 313, 8, 8]
+            x = nn.Upsample(shape, mode='bilinear', align_corners=True)(x)  # [1, 313, 8, 8] upsampling 到 [1, 313, 32, 32]，313代表313种颜色的概率(原文将ab两个通道颜色值量化到了313个颜色上，即313个通道)
         else:
             x = self.pooling(x)
             x = self.classifier(x.view(x.size(0), -1))

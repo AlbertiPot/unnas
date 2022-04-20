@@ -24,6 +24,7 @@ def prepare_rot(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
 
 
 def prepare_col(im, dataset, split, nbrs, mean, sd, eig_vals=None, eig_vecs=None):
+    # (32, 32, 3)
     if "cifar" not in dataset:
         train_size = cfg.TRAIN.IM_SIZE
         if split == "train":
@@ -39,15 +40,22 @@ def prepare_col(im, dataset, split, nbrs, mean, sd, eig_vals=None, eig_vecs=None
             im = transforms.center_crop(train_size, im)
     if split == "train":
         im = transforms.horizontal_flip(im=im, p=0.5, order="HWC")  # Best before rgb2lab because otherwise need to flip together with label
-    im_lab = color.rgb2lab(im.astype(np.uint8, copy=False))
-    im = transforms.HWC2CHW(im_lab[:, :, 0:1]).astype(np.float32, copy=False)   # 把im_lab图像的L通道作为im, 剩下的ab通道作为label
-    # Ad hoc normalization of the L channel
+    im_lab = color.rgb2lab(im.astype(np.uint8, copy=False)) #(32, 32, 3)
+    im = transforms.HWC2CHW(im_lab[:, :, 0:1]).astype(np.float32, copy=False)   # (1,32,32),把im_lab图像的L通道作为im, 剩下的ab通道作为label
+    
+    # Ad hoc normalization of the L channel 
+    # im是L通道，用rgb三个值的平均作为mean，三个值的sd的平均作sd来标准化 只有L通道的im
     im = im / 100.0
     im = im - np.mean(mean)
     im = im / np.mean(sd)
+    
+    # 1) 取(32,32,3）后两个ab通道，reshape成 (1024,2), 送入到knn中找到代表的量化值（从313中选择一个值）
+    # 2) knn输入(1024,2)，1024代表像素点，2代表每个像素点的ab两个通道值
+    # 3）knn的nbr设置是1，即输出的特征维度，就是1个代表颜色的值
     label = nbrs.kneighbors(im_lab[:, :, 1:].reshape(-1, 2),
             return_distance=False).reshape(im_lab.shape[0], im_lab.shape[1])
-    return im, label
+    
+    return im, label # im (1,32,32) label(32,32)
 
 
 def prepare_jig(im, dataset, split, perms, mean, sd, eig_vals=None, eig_vecs=None):

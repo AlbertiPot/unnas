@@ -209,9 +209,9 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
         
         # Compute the errors
         if cfg.TASK == "col":
-            preds = preds.permute(0, 2, 3, 1)           # [2, 313, 224, 224] 第二维的量化颜色分类预测换到最后一个维度上 
-            preds = preds.reshape(-1, preds.size(3))    # [100352, 313]
-            labels = labels.reshape(-1)                 # [2, 224, 224] → [100352]
+            preds = preds.permute(0, 2, 3, 1)           # [bsz, 313, h, w] 第二维的量化颜色分类预测换到最后一个维度上 
+            preds = preds.reshape(-1, preds.size(3))    # [bsz*h*w, 313]
+            labels = labels.reshape(-1)                 # [bsz, h, w] → [bsz*h*w]
             mb_size = inputs.size(0) * inputs.size(2) * inputs.size(3) * cfg.NUM_GPUS
         else:
             mb_size = inputs.size(0) * cfg.NUM_GPUS
