@@ -2,7 +2,7 @@ MODEL:
   TYPE: nas
   NUM_CLASSES: 100
 NAS:
-  GENOTYPE: darts_v2
+  GENOTYPE: v1rotc100seed7777
   WIDTH: 36
   DEPTH: 20
   AUX: True
