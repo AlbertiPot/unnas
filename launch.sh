@@ -20,8 +20,8 @@ time=$(date "+%Y%m%d_%H%M%S")
 #     RNG_SEED 9999 > search_cls_c100_v1c100clsseed9999.log 2>&1 &
 
 # eval on c100
-arch_config="v1rotc100seed7777"
-CUDA_VISIBLE_DEVICES=5 nohup python -u tools/train_net.py \
+arch_config="v1jigc100seed9999"
+CUDA_VISIBLE_DEVICES=3 nohup python -u tools/train_net.py \
     --cfg configs/search_based/eval_phase/cls/cifar100_custom_dartsarch.yaml \
     OUT_DIR result/eval_c100_${arch_config}_trainseed0_${time} \
     RNG_SEED 0 > eval_c100_${arch_config}.log 2>&1 &
