@@ -113,7 +113,7 @@ def prepare_jig(im, dataset, split, perms, mean, sd, eig_vals=None, eig_vecs=Non
     return tiles, label # tiles(4,3,12,12)是按照label对应的排列排序的拼图块，预测
 
 
-def prepare_im(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
+def prepare_im(im, dataset, split, mean, sd, is_cutout=False, eig_vals=None, eig_vecs=None):
     if "imagenet" in dataset:
         # Train and test setups differ
         train_size = cfg.TRAIN.IM_SIZE
@@ -155,6 +155,8 @@ def prepare_im(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
         if split == "train":
             im = transforms.horizontal_flip(im=im, p=0.5)
             im = transforms.random_crop(im=im, size=cfg.TRAIN.IM_SIZE, pad_size=4)  # Best after color_norm because of zero padding
+            if is_cutout:
+                im = transforms.cutout(im, length=cfg.TRAIN.CUTOUT_LENGTH)  
     return im
 
 

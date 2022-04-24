@@ -10,6 +10,7 @@
 import math
 
 import cv2
+import torch
 import numpy as np
 
 
@@ -132,4 +133,23 @@ def lighting(im, alpha_std, eig_val, eig_vec):
     rgb = np.sum(eig_vec * alpha * eig_val, axis=1)
     for i in range(im.shape[0]):
         im[i] = im[i] + rgb[2 - i]
+    return im
+
+def cutout(im, length):
+    im = torch.from_numpy(im)
+    h, w = im.size(1), im.size(2)  # (CHW)
+    mask = np.ones((h, w), np.float32)
+
+    y = np.random.randint(h)        # 中心点坐标
+    x = np.random.randint(w)
+
+    y1 = np.clip(y - length // 2, 0, h)
+    y2 = np.clip(y + length // 2, 0, h)
+    x1 = np.clip(x - length // 2, 0, w)
+    x2 = np.clip(x + length // 2, 0, w)
+
+    mask[y1: y2, x1: x2] = 0.
+    mask = torch.from_numpy(mask)
+    mask = mask.expand_as(im)
+    im *= mask
     return im

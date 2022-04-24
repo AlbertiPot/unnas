@@ -107,7 +107,8 @@ class Cifar100(torch.utils.data.Dataset):
                             dataset="cifar100",
                             split=self._split,
                             mean=_MEAN,
-                            sd=_SD)
+                            sd=_SD,
+                            is_cutout=cfg.TRAIN.CUTOUT)
         return im, label
 
     def __len__(self):

@@ -359,6 +359,10 @@ _C.TRAIN.GRAY_PERCENTAGE = 0.0
 # Portion to create trainA/trainB split
 _C.TRAIN.PORTION = 1.0
 
+# Enabel cutout when evaluating for cifar10/cifar100
+_C.TRAIN.CUTOUT = False
+_C.TRAIN.CUTOUT_LENGTH = 16
+
 
 # ------------------------------------------------------------------------------------ #
 # Testing options
