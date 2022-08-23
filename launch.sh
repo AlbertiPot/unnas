@@ -38,3 +38,10 @@ time=$(date "+%Y%m%d_%H%M%S")
 #     --cfg configs/search_based/eval_phase/cls/cifar100_custom_dartsarch.yaml \
 #     OUT_DIR result/cutoutdebug \
 #     RNG_SEED 9999
+
+# 相同的docker实例不用删除重新软连接
+# rm /data/gbc/Workspace/unnas/pycls/datasets/data/cityscapes
+# ln -s /data/xjh/data/cityscapes /data/gbc/Workspace/unnas/pycls/datasets/data/cityscapes
+/root/miniconda3/envs/rookie/bin/pip install -r /data/gbc/Workspace/unnas/requirements.txt -i https://pypi.mirrors.ustc.edu.cn/simple/
+export PYTHONPATH=/data/gbc/Workspace/unnas/
+/root/miniconda3/envs/rookie/bin/python /data/gbc/Workspace/unnas/tools/train_net.py --cfg /data/gbc/Workspace/unnas/configs/search_based/eval_phase/seg/cityscapes_seg.yaml OUT_DIR /data/gbc/Workspace/unnas/tmp
