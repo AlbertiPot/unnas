@@ -58,7 +58,7 @@ def _construct_loader(dataset_name, split, batch_size, shuffle, drop_last, porti
             assert(len(batch) == 2)
             b, r, c, h, w = batch[0].size()             # batch_sz, rotation四个角度，通道，h，w
             batch[0] = batch[0].view([b * r, c, h, w])  # 将bsz和旋转的4个角度相乘，即一个batch的数量是4倍的原bsz
-            batch[1] = batch[1].view([b * r])           # 标签
+            batch[1][1] = batch[1][1].view([b * r])           # 标签
             # print("After collate ", batch[0].shape, batch[1].shape)
             return batch
         collate_fn = _collate_fn

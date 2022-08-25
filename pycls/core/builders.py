@@ -75,7 +75,7 @@ def build_loss_fun():
     if cfg.TASK == "seg":
         return get_loss_fun()(ignore_index=255)     # 分割时，忽略index=255，这个index不贡献梯度
     else:
-        return get_loss_fun()()
+        return [get_loss_fun()(),get_loss_fun()()]
 
 
 def register_model(name, ctor):

@@ -68,9 +68,9 @@ def setup_model():
         x = torch.randn(1, cfg.JIGSAW_GRID ** 2, cfg.MODEL.INPUT_CHANNELS, h, w) # 对于jigsaw，是 (1,9,3,h,w)的tensor
     else:
         x = torch.randn(1, cfg.MODEL.INPUT_CHANNELS, h, w)      # 对于其他任务，是(1,3,h,w)
-    macs, params = profile(model, inputs=(x, ), verbose=False)
-    logger.info("Params: {:,}".format(params))
-    logger.info("Flops: {:,}".format(macs))
+    # macs, params = profile(model, inputs=(x, ), verbose=False)
+    # logger.info("Params: {:,}".format(params))
+    # logger.info("Flops: {:,}".format(macs))
     
     # Transfer the model to the current GPU device
     err_str = "Cannot use more GPU devices than available"
@@ -156,7 +156,7 @@ def train_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch
     train_meter.reset()
 
 
-def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch):
+def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, train_meter_cls, cur_epoch):
     """Performs one epoch of differentiable architecture search. 搜索darts结构"""
     
     m = model.module if cfg.NUM_GPUS > 1 else model     # 分布式下，DDP副本module为m
@@ -172,6 +172,7 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
     # Enable training mode
     model.train()
     train_meter.iter_tic()
+    train_meter_cls.iter_tic()
     trainB_iter = iter(train_loader[1])     # 优化结构参数的dataloader
     for cur_iter, (inputs, labels) in enumerate(train_loader[0]):
         # Update the learning rate per iter
@@ -180,17 +181,17 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
             optim.set_lr(optimizer[0], lr)
         
         # Transfer the data to the current GPU device
-        inputs, labels = inputs.cuda(), labels.cuda(non_blocking=True)  
-       
-        # Update architecture 开始用另一半数据训练结构参数
+        inputs = inputs.cuda()
+        labels = [labels[0].cuda(non_blocking=True), labels[1].cuda(non_blocking=True)] if type(labels) is list else labels.cuda(non_blocking=True)
+        # Update architecture
         if cur_epoch + cur_iter / len(train_loader[0]) >= cfg.OPTIM.ARCH_EPOCH: # cfg.OPTIM.ARCH_EPOCH = 1，第一个epoch更新权重w，只有第二个epoch才开始更新α
             try:
                 inputsB, labelsB = next(trainB_iter)
             except StopIteration:
                 trainB_iter = iter(train_loader[1])
                 inputsB, labelsB = next(trainB_iter)
-            inputsB, labelsB = inputsB.cuda(), labelsB.cuda(non_blocking=True)
-            
+            inputsB = inputsB.cuda()
+            labelsB = [labelsB[0].cuda(non_blocking=True), labelsB[1].cuda(non_blocking=True)] if type(labelsB) is list else labelsB.cuda(non_blocking=True)
             optimizer[1].zero_grad()        # optimizer1 负责优化结构参数α
             loss = m._loss(inputsB, labelsB)# 在训练集的rside前向一次，计算loss，!!!!这里仅仅是一阶更新
             loss.backward()
@@ -198,8 +199,12 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
         
         # Perform the forward pass 开始更新权重
         preds = model(inputs)
+        
         # Compute the loss
-        loss = loss_fun(preds, labels)
+        l_cls = loss_fun[0](preds[0],labels[0])
+        l_aux = loss_fun[1](preds[1],labels[1])
+        loss = l_cls + l_aux/(l_aux/l_cls).detach()
+
         # Perform the backward pass
         optimizer[0].zero_grad()
         loss.backward()
@@ -209,9 +214,9 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
         
         # Compute the errors
         if cfg.TASK == "col":
-            preds = preds.permute(0, 2, 3, 1)           # [bsz, 313, h, w] 第二维的量化颜色分类预测换到最后一个维度上 
-            preds = preds.reshape(-1, preds.size(3))    # [bsz*h*w, 313]
-            labels = labels.reshape(-1)                 # [bsz, h, w] → [bsz*h*w]
+            preds[1] = preds[1].permute(0, 2, 3, 1)           # [bsz, 313, h, w] 第二维的量化颜色分类预测换到最后一个维度上 
+            preds[1] = preds[1].reshape(-1, preds[1].size(3))    # [bsz*h*w, 313]
+            labels[1] = labels[1].reshape(-1)                 # [bsz, h, w] → [bsz*h*w]
             mb_size = inputs.size(0) * inputs.size(2) * inputs.size(3) * cfg.NUM_GPUS
         else:
             mb_size = inputs.size(0) * cfg.NUM_GPUS
@@ -220,26 +225,37 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
             top1_err, top5_err = meters.inter_union(preds, labels, cfg.MODEL.NUM_CLASSES)
         else:
             ks = [1, min(5, cfg.MODEL.NUM_CLASSES)]  # rot only has 4 classes
-            top1_err, top5_err = meters.topk_errors(preds, labels, ks)
+            top1_err, top5_err = meters.topk_errors(preds[1], labels[1], ks)
+            top1_err_cls, top5_err_cls = meters.topk_errors(preds[0], labels[0], [1,5]) # 分类分支只计算 top1 5 分类acc
         
         # Combine the stats across the GPUs (no reduction if 1 GPU used)
-        loss, top1_err, top5_err = dist.scaled_all_reduce([loss, top1_err, top5_err])   # 每一个进程都会得到这三个的平均结果
+        # loss, top1_err, top5_err = dist.scaled_all_reduce([loss, top1_err, top5_err])   # 每一个进程都会得到这三个的平均结果
         
         # Copy the stats from GPU to CPU (sync point)
-        loss = loss.item()
+        l_cls = l_cls.item()
+        l_aux = l_aux.item()
         if cfg.TASK == "seg":
             top1_err, top5_err = top1_err.cpu().numpy(), top5_err.cpu().numpy()         # 在meters中计算iou用了torch，仍在gpu上
         else:
             top1_err, top5_err = top1_err.item(), top5_err.item()
+            top1_err_cls, top5_err_cls = top1_err_cls.item(), top5_err_cls.item()
         train_meter.iter_toc()
+        train_meter_cls.iter_toc()
         # Update and log stats
-        train_meter.update_stats(top1_err, top5_err, loss, lr, mb_size)
+        train_meter.update_stats(top1_err, top5_err, l_aux, lr, mb_size)
+        train_meter_cls.update_stats(top1_err_cls, top5_err_cls, l_cls, lr, mb_size)
+        
         train_meter.log_iter_stats(cur_epoch, cur_iter)
+        train_meter_cls.log_iter_stats(cur_epoch, cur_iter)
+
         train_meter.iter_tic()
+        train_meter_cls.iter_tic()
     
     # Log epoch stats
     train_meter.log_epoch_stats(cur_epoch)  # 本进程若是主进程，log信息，非主进程logger设置为不打印
+    train_meter_cls.log_epoch_stats(cur_epoch)
     train_meter.reset()
+    train_meter_cls.reset()
     # Log genotype
     genotype = m.genotype()
     logger.info("genotype = %s", genotype)
@@ -248,21 +264,23 @@ def search_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoc
 
 
 @torch.no_grad()
-def test_epoch(test_loader, model, test_meter, cur_epoch):
+def test_epoch(test_loader, model, test_meter, test_meter_cls, cur_epoch):
     """Evaluates the model on the test set."""
     # Enable eval mode
     model.eval()
     test_meter.iter_tic()
+    test_meter_cls.iter_tic()
     for cur_iter, (inputs, labels) in enumerate(test_loader):
         # Transfer the data to the current GPU device
-        inputs, labels = inputs.cuda(), labels.cuda(non_blocking=True)
-        # Compute the predictions
+        inputs = inputs.cuda()
+        labels = [labels[0].cuda(non_blocking=True), labels[1].cuda(non_blocking=True)] if type(labels) is list else labels.cuda(non_blocking=True)
+        
         preds = model(inputs)
-        # Compute the errors
+        
         if cfg.TASK == "col":
-            preds = preds.permute(0, 2, 3, 1)
-            preds = preds.reshape(-1, preds.size(3))
-            labels = labels.reshape(-1)
+            preds[1] = preds[1].permute(0, 2, 3, 1)
+            preds[1] = preds[1].reshape(-1, preds[1].size(3))
+            labels[1] = labels[1].reshape(-1)
             mb_size = inputs.size(0) * inputs.size(2) * inputs.size(3) * cfg.NUM_GPUS
         else:
             mb_size = inputs.size(0) * cfg.NUM_GPUS
@@ -271,22 +289,32 @@ def test_epoch(test_loader, model, test_meter, cur_epoch):
             top1_err, top5_err = meters.inter_union(preds, labels, cfg.MODEL.NUM_CLASSES)
         else:
             ks = [1, min(5, cfg.MODEL.NUM_CLASSES)]  # rot only has 4 classes
-            top1_err, top5_err = meters.topk_errors(preds, labels, ks)
+            top1_err, top5_err = meters.topk_errors(preds[1], labels[1], ks)
+            top1_err_cls, top5_err_cls = meters.topk_errors(preds[0], labels[0], [1,5])
+
         # Combine the errors across the GPUs  (no reduction if 1 GPU used)
-        top1_err, top5_err = dist.scaled_all_reduce([top1_err, top5_err])
+        # top1_err, top5_err = dist.scaled_all_reduce([top1_err, top5_err])
         # Copy the errors from GPU to CPU (sync point)
         if cfg.TASK == "seg":
             top1_err, top5_err = top1_err.cpu().numpy(), top5_err.cpu().numpy()
         else:
             top1_err, top5_err = top1_err.item(), top5_err.item()
+            top1_err_cls, top5_err_cls = top1_err_cls.item(), top5_err_cls.item()
+        
         test_meter.iter_toc()
+        test_meter_cls.iter_toc()
         # Update and log stats
         test_meter.update_stats(top1_err, top5_err, mb_size)
+        test_meter_cls.update_stats(top1_err_cls, top5_err_cls, mb_size)
         test_meter.log_iter_stats(cur_epoch, cur_iter)
+        test_meter_cls.log_iter_stats(cur_epoch, cur_iter)
         test_meter.iter_tic()
+        test_meter_cls.iter_tic()
     # Log epoch stats
     test_meter.log_epoch_stats(cur_epoch)
+    test_meter_cls.log_epoch_stats(cur_epoch)
     test_meter.reset()
+    test_meter_cls.reset()
 
 
 def train_model():
@@ -295,7 +323,8 @@ def train_model():
     setup_env()
     # Construct the model, loss_fun, and optimizer
     model = setup_model()   # 获得的是分布式模型的在本进程内的一个DDP 副本
-    loss_fun = builders.build_loss_fun().cuda()
+    loss_fun = builders.build_loss_fun()
+    loss_fun = [loss_fun[0].cuda(),loss_fun[1].cuda()]
     
     # 设置被搜索的参数
     # if上分支是darts搜索时的优化器构建部分，else分支是darts做eval的
@@ -393,20 +422,16 @@ def train_model():
     
     l = train_loader[0] if isinstance(train_loader, list) else train_loader
     train_meter = train_meter_type(len(l))  # len(l) = len(data_loader) = No. batchsize
+    train_meter_cls = train_meter_type(len(l))
     test_meter = test_meter_type(len(test_loader))
-    
-    # Compute model and loader timings
-    # if start_epoch == 0 and cfg.PREC_TIME.NUM_ITER > 0:
-    #     l = train_loader[0] if isinstance(train_loader, list) else train_loader
-    #     benchmark.compute_time_full(model, loss_fun, l, test_loader)    # 跑一下计算和dataloader的时间
-    
+    test_meter_cls = test_meter_type(len(test_loader))
     # Perform the training loop
     logger.info("Start epoch: {}".format(start_epoch + 1))
     for cur_epoch in range(start_epoch, cfg.OPTIM.MAX_EPOCH):
         
         # Train for one epoch
         f = search_epoch if "search" in cfg.MODEL.TYPE else train_epoch     # search_epoch是搜索darts结构
-        f(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch)
+        f(train_loader, model, loss_fun, optimizer, train_meter, train_meter_cls, cur_epoch)
         
         # Compute precise BN stats
         if cfg.BN.USE_PRECISE_STATS:
@@ -420,7 +445,7 @@ def train_model():
         # Evaluate the model
         next_epoch = cur_epoch + 1
         if next_epoch % cfg.TRAIN.EVAL_PERIOD == 0 or next_epoch == cfg.OPTIM.MAX_EPOCH:
-            test_epoch(test_loader, model, test_meter, cur_epoch)
+            test_epoch(test_loader, model, test_meter, test_meter_cls, cur_epoch)
 
 
 def test_model():

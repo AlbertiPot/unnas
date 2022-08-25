@@ -86,25 +86,28 @@ class Cifar10(torch.utils.data.Dataset):
         im, label = self._inputs[index, ...].copy(), self._labels[index]    # 将第index个数据copy出来
         im = transforms.CHW2HWC(im)  # CHW, RGB -> HWC, RGB
         if cfg.TASK == 'rot':
-            im, label = prepare_rot(im,
+            im, label_rot = prepare_rot(im,
                                     dataset="cifar10",
                                     split=self._split,
                                     mean=_MEAN,
                                     sd=_SD)
+            label = [label, label_rot]
         elif cfg.TASK == 'col':
-            im, label = prepare_col(im,
+            im, label_col = prepare_col(im,
                                     dataset="cifar10",
                                     split=self._split,
                                     nbrs=self._nbrs,
                                     mean=_MEAN,
                                     sd=_SD)
+            label = [label, label_col]
         elif cfg.TASK == 'jig':
-            im, label = prepare_jig(im,
+            im, label_jig = prepare_jig(im,
                                     dataset="cifar10",
                                     split=self._split,
                                     perms=self._perms,
                                     mean=_MEAN,
                                     sd=_SD)
+            label = [label, label_jig]
         else:
             im = prepare_im(im,
                             dataset="cifar10",

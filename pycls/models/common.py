@@ -26,25 +26,49 @@ class Classifier(nn.Module):
             self.jig_sq = cfg.JIGSAW_GRID ** 2
             self.pooling = nn.AdaptiveAvgPool2d(1)
             self.classifier = nn.Linear(channels * self.jig_sq, num_classes)
+            if cfg.TRAIN.DATASET == 'cifar100':
+                cls_classes = 100
+            elif cfg.TRAIN.DATASET == 'cifar10':
+                cls_classes = 10
+            self.classifier_cls = nn.Linear(channels * self.jig_sq, cls_classes)
         elif cfg.TASK == 'col':
             self.classifier = nn.Conv2d(channels, num_classes, kernel_size=1, stride=1) # num_classes=313
+            self.pooling = nn.AdaptiveAvgPool2d(1)
+            if cfg.TRAIN.DATASET == 'cifar100':
+                cls_classes = 100
+            elif cfg.TRAIN.DATASET == 'cifar10':
+                cls_classes = 10
+            self.classifier_cls = nn.Linear(channels, cls_classes)
         elif cfg.TASK == 'seg':
             self.classifier = ASPP(channels, cfg.MODEL.ASPP_CHANNELS, num_classes, cfg.MODEL.ASPP_RATES)
         else:
             self.pooling = nn.AdaptiveAvgPool2d(1)
             self.classifier = nn.Linear(channels, num_classes)
+            if cfg.TRAIN.DATASET == 'cifar100':
+                cls_classes = 100
+            elif cfg.TRAIN.DATASET == 'cifar10':
+                cls_classes = 10
+            self.classifier_cls = nn.Linear(channels * cfg.MODEL.NUM_CLASSES, cls_classes)
 
     def forward(self, x, shape):
         if cfg.TASK == 'jig':
             x = self.pooling(x)
             x = x.view([x.shape[0] // self.jig_sq, x.shape[1] * self.jig_sq, x.shape[2], x.shape[3]])   # (bsz*grid^2, c, 1, 1) → (bsz, c*grid^2, 1,1), 后两维度是1是因为pool输出的维度是1
-            x = self.classifier(x.view(x.size(0), -1))  # (bsz, c*grid^2 * 1 *1)
-        elif cfg.TASK in ['col', 'seg']:
-            x = self.classifier(x)  # [1, 256, 8, 8] → [1, 313, 8, 8]
-            x = nn.Upsample(shape, mode='bilinear', align_corners=True)(x)  # [1, 313, 8, 8] upsampling 到 [1, 313, 32, 32]，313代表313种颜色的概率(原文将ab两个通道颜色值量化到了313个颜色上，即313个通道)
+            x1 = self.classifier_cls(x.view(x.size(0), -1))
+            x2 = self.classifier(x.view(x.size(0), -1))  # (bsz, c*grid^2 * 1 *1)
+            x = [x1, x2]
+        elif cfg.TASK == 'col':
+            x1 = self.pooling(x)
+            x1 = self.classifier_cls(x1.view(x1.size(0), -1))
+            x2 = self.classifier(x)  # [1, 256, 8, 8] → [1, 313, 8, 8]
+            x2 = nn.Upsample(shape, mode='bilinear', align_corners=True)(x2)  # [1, 313, 8, 8] upsampling 到 [1, 313, 32, 32]，313代表313种颜色的概率(原文将ab两个通道颜色值量化到了313个颜色上，即313个通道)
+            x = [x1, x2] # cls_logits, col_logits
         else:
             x = self.pooling(x)
-            x = self.classifier(x.view(x.size(0), -1))
+            x1 = x.view([x.shape[0] // cfg.MODEL.NUM_CLASSES, x.shape[1] * cfg.MODEL.NUM_CLASSES, x.shape[2],x.shape[3]])
+            x1 = self.classifier_cls(x1.view(x1.size(0), -1))
+            x2 = self.classifier(x.view(x.size(0), -1))
+            x = [x1, x2]
         return x
 
 
