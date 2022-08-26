@@ -1,0 +1,22 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg", "configs/search_based/eval_phase/cls/cifar100_custom_dartsarch.yaml",
+                    "OUT_DIR", "tmp/eval_c100_UNNAS_IMAGENET22K_COL_cutout_trainseed0",
+                    "RNG_SEED", "0",
+                    "NAS.GENOTYPE", "unnas_imagenet22k_col"
+            ],
+            "env": {"PYTHONPATH":"/data/gbc/Workspace/unnas"}
+        }
+    ]
+}
