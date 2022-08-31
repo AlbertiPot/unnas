@@ -33,6 +33,22 @@
 #     OUT_DIR result/eval_c100_${arch_config}_cutout_trainseed0_${time} \
 #     RNG_SEED 0 > eval_c100_${arch_config}_cutout.log 2>&1 &
 
+# search universal on both {cifar10/cifar100} with any tasks {jig/col/rot}
+time=$(date "+%Y%m%d_%H%M%S")
+PYTHONHOME=/root/miniconda3/envs/rookie/bin
+WDIR=/data/gbc/Workspace/unnas
+export PYTHONPATH=${WDIR}
+${PYTHONHOME}/pip install -r ${WDIR}/requirements.txt -i https://pypi.mirrors.ustc.edu.cn/simple/
+CUDA_VISIBLE_DEVICES=0
+
+SEED=2
+TASK=jig
+DATASET=cifar10
+
+${PYTHONHOME}/python ${WDIR}/tools/train_net.py --cfg ${WDIR}/configs/search_based/search_phase/${DATASET}/${TASK}.yaml \
+    OUT_DIR ${WDIR}/result/search_v1${TASK}${DATASET}seed${SEED}_${time} \
+    RNG_SEED ${SEED} > /log/search_v1${TASK}${DATASET}seed${SEED}_${time}.log 2>&1
+
 # eval on c100 on mindfree
 WDIR=/data/gbc/Workspace/unnas
 PYTHONHOME=/root/miniconda3/envs/rookie/bin
