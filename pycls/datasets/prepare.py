@@ -14,7 +14,7 @@ from pycls.core.config import cfg
 
 
 def prepare_rot(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
-    im = prepare_im(im, dataset, split, mean, sd, eig_vals, eig_vecs)   # HWC→CHW， 图像增广，翻转，crop等
+    im = prepare_im(im, dataset, split, mean, sd, eig_vals=eig_vals, eig_vecs=eig_vecs)   # HWC→CHW， 图像增广，翻转，crop等
     rot_im = []
     for i in range(4):
         rot_im.append(np.rot90(im, i, (1, 2))) #i指转90度的次数，(1,2)指 H，W轴旋转i*90°

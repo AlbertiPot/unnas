@@ -6,7 +6,8 @@
 # LICENSE file in the root directory of this source tree.
 
 """Train a classification model."""
-
+import sys
+sys.path.insert(0,'/data/usr/gbc/workspace/unnas')
 import pycls.core.config as config
 import pycls.core.distributed as dist
 import pycls.core.trainer as trainer
