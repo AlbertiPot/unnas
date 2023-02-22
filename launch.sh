@@ -81,14 +81,15 @@
 # /root/miniconda3/envs/rookie/bin/python /data/gbc/Workspace/unnas/tools/train_net.py --cfg /data/gbc/Workspace/unnas/configs/search_based/eval_phase/seg/cityscapes_seg.yaml OUT_DIR /data/gbc/Workspace/unnas/tmp
 
 
+cd /data/usr/gbc/workspace/unnas
+export PYTHONPATH=.
+time=$(date "+%Y%m%d_%H%M%S")
 
-# export PYTHONPATH=.
-# time=$(date "+%Y%m%d_%H%M%S")
+/root/miniconda3/envs/rookie/bin/pip -r requirements.rxt
 
-
-# TASK='rot'
-# SEED=9999
-# CUDA_VISIBLE_DEVICES=0 nohup python -u tools/train_net.py \
-#     --cfg configs/search_based/search_phase/imagenet/${TASK}.yaml \
-#     OUT_DIR tmp/search_${TASK}_imagenet_v1${TASK}imgseed${SEED}_${time} \
-#     RNG_SEED ${SEED} > search_${TASK}_imagenet_v1${TASK}imgseed${SEED}_.log 2>&1
+TASK='col'
+SEED=9999
+CUDA_VISIBLE_DEVICES=1 nohup /root/miniconda3/envs/rookie/bin/python -u tools/train_net.py \
+    --cfg configs/search_based/search_phase/imagenet/${TASK}.yaml \
+    OUT_DIR tmp/search_${TASK}_imagenet_v1${TASK}imgseed${SEED}_${time} \
+    RNG_SEED ${SEED} > search_${TASK}_imagenet_v1${TASK}imgseed${SEED}_${time}.log 2>&1
