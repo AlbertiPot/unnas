@@ -84,12 +84,17 @@
 cd /data/usr/gbc/workspace/unnas
 export PYTHONPATH=.
 time=$(date "+%Y%m%d_%H%M%S")
+PYHOME='/root/miniconda3/envs/rookie/bin/'
 
-/root/miniconda3/envs/rookie/bin/pip -r requirements.rxt
+apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+
+${PYHOME}python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --upgrade pip
+${PYHOME}pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+${PYHOME}pip install -r requirements.txt
 
 TASK='col'
 SEED=9999
-CUDA_VISIBLE_DEVICES=1 nohup /root/miniconda3/envs/rookie/bin/python -u tools/train_net.py \
+CUDA_VISIBLE_DEVICES=0 nohup ${PYHOME}python -u tools/train_net.py \
     --cfg configs/search_based/search_phase/imagenet/${TASK}.yaml \
     OUT_DIR tmp/search_${TASK}_imagenet_v1${TASK}imgseed${SEED}_${time} \
     RNG_SEED ${SEED} > search_${TASK}_imagenet_v1${TASK}imgseed${SEED}_${time}.log 2>&1
