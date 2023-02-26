@@ -34,3 +34,5 @@ result/
 *.log
 tmp/
 pycls/datasets/data
+
+landscape/cifar10/trained_nets
